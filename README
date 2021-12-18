@@ -32,6 +32,10 @@ your location:
 If -q is given, manually set capacity and limit are ignored. If -r is given all
 other options are ignored.
 
+# VPN CONNECT
+
+The little script vpn_connect.sh integrates 
+
 DEPENDENCIES
 
 - Bash 4

@@ -1,0 +1,56 @@
+#!/usr/bin/bash
+
+OVPN_FILES="/usr/lib/python3.10/site-packages/openpyn/files/ovpn_tcp"
+COUNTRY_CODE=$1
+
+function make_top_servers() {
+    TOP_TEN=()
+    while IFS= read -r server; do
+        TOP_TEN+=( $server )
+    done < <( nordvpn-server-find -n 10 -l $1 | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | tail -n 10 | tr -s " " | cut -d\  -f 1 )
+}
+
+function get_rand_ccode() {
+    rand_countr_code=`ls $OVPN_FILES | cut -c1-2 | uniq | shuf | head -n 1`
+    echo "$rand_countr_code"
+}
+
+function old_con_down() {
+    ACTIVE_VPN=`nmcli c show --active | grep vpn | tr -s " " | cut -d\  -f 2`
+    if [ ! -z "$ACTIVE_VPN" ]; then
+        echo "Found active connection. Deactivating $ACTIVE_VPN ... "
+        nmcli con down $ACTIVE_VPN
+        sleep 3
+    fi
+}
+
+if [ -z "$COUNTRY_CODE" ]; then
+    COUNTRY_CODE=$(get_rand_ccode)
+fi
+
+echo "Get Top Servers for $COUNTRY_CODE"
+make_top_servers $COUNTRY_CODE
+
+iters=0
+
+while [ 1 ]
+do  
+    echo "Iteration $iters"
+    if (( $iters > ${#TOP_TEN[@]} )); then
+        COUNTRY_CODE=$(get_rand_ccode)
+        make_top_servers $COUNTRY_CODE
+        iters=0
+    fi
+
+    old_con_down
+    echo "Fastest Server is ..."
+    top="${TOP_TEN[$iters]}.tcp"
+    echo "${#TOP_TEN[@]}"
+    nmcli con up $top --ask
+    if [ $? -eq 0 ]; then
+        exit 1
+    else
+        ((iters++)) 
+    fi
+done
+
